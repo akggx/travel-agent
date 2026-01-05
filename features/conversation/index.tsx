@@ -1,52 +1,94 @@
+'use client';
+
+import { storageStore } from '@/store/storage';
+import { storage } from '@/store/utils/storage';
 import { Conversations, ConversationsProps } from '@ant-design/x';
+import { useXConversations } from '@ant-design/x-sdk';
 import { GetProp } from 'antd';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 const Conversation = () => {
-  const agentItems: GetProp<ConversationsProps, 'items'> = [
-    {
-      key: 'write',
-      label: 'Help Me Write',
-    },
-    {
-      key: 'coding',
-      label: 'AI Coding',
-    },
-    {
-      type: 'divider',
-    },
-  ];
+  const {
+    conversations,
+    activeConversationKey,
+    setActiveConversationKey,
+    addConversation,
+    removeConversation,
+  } = useXConversations({
+    defaultConversations: [],
+    defaultActiveConversationKey: undefined,
+  });
 
-  const [historicalItems, setHistoricalItems] = useState<
-    GetProp<ConversationsProps, 'items'>
-  >([
-    {
-      key: `item1`,
-      label: 'Conversation Item 1',
-    },
-  ]);
+  // 初始化：从 localStorage 加载历史对话
+  useEffect(() => {
+    const savedConversations = storageStore.loadAllConversations();
 
-  const newChatClick = () => {
-    setHistoricalItems((ori) => {
-      return [
-        ...ori,
-        {
-          key: `item${ori.length + 1}`,
-          label: `Conversation Item ${ori.length + 1}`,
-        },
-      ];
+    Object.values(savedConversations).forEach((conv) => {
+      addConversation({
+        key: conv.id,
+        title: conv.title,
+      });
+    });
+  }, []);
+
+  // 监听对话变化，自动持久化
+  useEffect(() => {
+    conversations.forEach((conv) => {
+      storageStore.saveConversation({
+        id: conv.id,
+        title: conv.title || '新对话',
+        createdAt: Date.now(),
+        lastMessageAt: Date.now(),
+      });
+    });
+  }, [conversations]);
+
+  const handleCreate = () => {
+    const newId = Date.now().toString();
+    addConversation({
+      key: newId,
+      title: '新对话',
+    });
+
+    // 保存到 localStorage
+    storageStore.saveConversation({
+      id: newId,
+      title: '新对话',
+      createdAt: Date.now(),
+      lastMessageAt: Date.now(),
     });
   };
+
+  const handleDelete = (id: string) => {
+    removeConversation(id);
+    storageStore.deleteConversation(id);
+  };
+
   return (
     <Conversations
       style={{
         width: 280,
         height: '100%',
       }}
+      accessKey={activeConversationKey}
+      onActiveChange={(key) => setActiveConversationKey(key)}
       creation={{
-        onClick: newChatClick,
+        onClick: handleCreate,
       }}
-      items={[...agentItems, ...historicalItems]}
+      items={conversations.map((conv) => ({
+        key: conv.id,
+        label: conv.title,
+      }))}
+      menu={(conversation) => ({
+        items: [
+          {
+            label: '删除',
+            key: 'delete',
+            danger: true,
+            onClick: () => handleDelete(conversation.key),
+          },
+        ],
+      })}
     />
   );
 };
