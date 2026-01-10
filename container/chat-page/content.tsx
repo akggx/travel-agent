@@ -79,6 +79,26 @@ export const ChatContent = ({ conversationId }: ChatContentProps) => {
     );
   }, [messages, conversationId]);
 
+  // 自动滚动到底部
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const scrollToBottom = () => {
+      if (scrollContainerRef.current) {
+        const container = scrollContainerRef.current;
+        // 使用原生 DOM 方法直接置底
+        container.scrollTo({
+          top: container.scrollHeight,
+          behavior: 'smooth',
+        });
+      }
+    };
+
+    // 延迟执行以确保流式内容已经渲染出高度
+    const timer = setTimeout(scrollToBottom, 100);
+
+    return () => clearTimeout(timer);
+  }, [messages]); // 深度监听 messages 数组
+
   // 发送消息
   const handleSend = (text: string) => {
     if (!text.trim() || !conversationId) return;
@@ -151,7 +171,10 @@ export const ChatContent = ({ conversationId }: ChatContentProps) => {
       <h1 className="mb-4 text-2xl font-bold">Travel Agent</h1>
 
       {/* 消息区 */}
-      <div className="flex flex-1 justify-center overflow-auto">
+      <div
+        className="flex flex-1 justify-center overflow-auto"
+        ref={scrollContainerRef}
+      >
         <div
           style={{
             width: CONTENT_WIDTH,
