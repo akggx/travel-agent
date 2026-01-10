@@ -1,56 +1,109 @@
-import { chatWithAgent } from '@/agent';
-import { NextRequest, NextResponse } from 'next/server';
+import { chatWithAgentStream } from '@/agent';
+import { NextRequest } from 'next/server';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { message, messages, conversationId } = body;
 
-    // 兼容两种格式：单个 message 或 messages 数组
     let userMessage: string;
-
     if (messages && Array.isArray(messages) && messages.length > 0) {
-      // XRequest 发送的格式：messages 数组
       const lastMessage = messages[messages.length - 1];
       userMessage = lastMessage.content;
     } else if (message) {
-      // 直接的 message 字段
       userMessage = message;
     } else {
-      return NextResponse.json(
-        { error: 'Message is required' },
-        { status: 400 },
-      );
+      return new Response(JSON.stringify({ error: 'Message is required' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
 
-    // 调用 agent，使用 conversationId 作为 threadId
-    const response = await chatWithAgent(userMessage, conversationId || '1');
+    // 创建 SSE 流
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      async start(controller) {
+        try {
+          // 使用流式方法
+          const streamResponse = await chatWithAgentStream(
+            userMessage,
+            conversationId || '1',
+          );
 
-    const aiMessage = response.messages[response.messages.length - 1];
-    const content = aiMessage.content;
+          let accumulatedContent = '';
 
-    // 返回 OpenAI 兼容的格式，供 OpenAIChatProvider 解析
-    return NextResponse.json({
-      choices: [
-        {
-          index: 0,
-          message: {
-            role: 'assistant',
-            content: content,
-          },
-          finish_reason: 'stop',
-        },
-      ],
-      created: Date.now(),
-      id: conversationId || 'default',
-      model: 'qwen-turbo',
-      object: 'chat.completion',
+          for await (const event of streamResponse) {
+            // 只处理 on_chat_model_stream 事件（LLM 的 token 流）
+            if (event.event === 'on_chat_model_stream') {
+              const chunk = event.data?.chunk;
+              if (chunk?.content) {
+                accumulatedContent += chunk.content;
+
+                // 发送 SSE 格式数据
+                const data = {
+                  id: conversationId || 'default',
+                  choices: [
+                    {
+                      index: 0,
+                      delta: {
+                        role: 'assistant',
+                        content: chunk.content,
+                      },
+                      finish_reason: null,
+                    },
+                  ],
+                  created: Date.now(),
+                  model: 'qwen-turbo',
+                  object: 'chat.completion.chunk',
+                };
+
+                controller.enqueue(
+                  encoder.encode(`data: ${JSON.stringify(data)}\n\n`),
+                );
+              }
+            }
+          }
+
+          console.log('Stream completed. Total content:', accumulatedContent);
+
+          // 发送结束标记
+          const endData = {
+            id: conversationId || 'default',
+            choices: [
+              {
+                index: 0,
+                delta: {},
+                finish_reason: 'stop',
+              },
+            ],
+            created: Date.now(),
+            model: 'qwen-turbo',
+            object: 'chat.completion.chunk',
+          };
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify(endData)}\n\n`),
+          );
+          controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+          controller.close();
+        } catch (error) {
+          console.error('Streaming error:', error);
+          controller.error(error);
+        }
+      },
+    });
+
+    return new Response(stream, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        Connection: 'keep-alive',
+      },
     });
   } catch (error) {
     console.error('Chat API error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 },
-    );
+    return new Response(JSON.stringify({ error: 'Internal server error' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
 }

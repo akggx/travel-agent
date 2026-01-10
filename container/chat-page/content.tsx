@@ -10,6 +10,8 @@ import { Flex } from 'antd';
 import { useEffect, useRef } from 'react';
 import { CONTENT_WIDTH, SAFE_BOTTOM_SPACE } from './constants';
 import { providerFactory } from './provider';
+import XMarkdown from '@ant-design/x-markdown';
+import '@ant-design/x-markdown/themes/light.css';
 
 interface Message {
   id: string;
@@ -123,7 +125,7 @@ export const ChatContent = ({ conversationId }: ChatContentProps) => {
         items={[
           {
             key: 'retry',
-            label: 'ask again',
+            label: 'Retry',
             icon: <SyncOutlined />,
             onItemClick: () => onReload?.(id, { userAction: 'retry' }),
           },
@@ -137,13 +139,23 @@ export const ChatContent = ({ conversationId }: ChatContentProps) => {
   };
 
   // Role 配置
-  const role = {
+  const getRole = {
     assistant: {
       placement: 'start' as const,
       footer: (
         content: string,
         { status, key }: { status?: string; key?: string | number },
       ) => <Footer id={String(key)} content={content} status={status || ''} />,
+      contentRender: (content: string, { status }: { status?: string }) => (
+        <XMarkdown
+          streaming={{
+            hasNextChunk: status === 'updating',
+            enableAnimation: true,
+          }}
+        >
+          {content}
+        </XMarkdown>
+      ),
     },
     user: {
       placement: 'end' as const,
@@ -195,7 +207,7 @@ export const ChatContent = ({ conversationId }: ChatContentProps) => {
                 status: m.status,
                 loading: m.status === 'loading',
               }))}
-              role={role}
+              role={getRole}
               styles={{
                 bubble: { maxWidth: CONTENT_WIDTH },
               }}

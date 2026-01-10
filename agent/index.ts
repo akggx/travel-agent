@@ -33,24 +33,23 @@ export async function chatWithAgent(
   return response;
 }
 
-const response = await agent.invoke(
-  {
-    messages: [
-      new SystemMessage(SYSTEM_PROMPT),
-      new HumanMessage('我想去西安'),
-    ],
-  },
-  { configurable: { thread_id: '1' } },
-);
-console.log('response:', response);
+export async function chatWithAgentStream(
+  userMessage: string,
+  threadId: string = '1',
+) {
+  // 使用 streamEvents 来获取真正的 token 级别流式输出
+  const stream = agent.streamEvents(
+    {
+      messages: [
+        new SystemMessage(SYSTEM_PROMPT),
+        new HumanMessage(userMessage),
+      ],
+    },
+    {
+      configurable: { thread_id: threadId },
+      version: 'v2',
+    },
+  );
 
-const response1 = await agent.invoke(
-  {
-    messages: [
-      new SystemMessage(SYSTEM_PROMPT),
-      new HumanMessage('我之前计划去哪里来着？'),
-    ],
-  },
-  { configurable: { thread_id: '1' } },
-);
-console.log('response:', response1);
+  return stream;
+}
