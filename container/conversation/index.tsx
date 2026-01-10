@@ -6,13 +6,12 @@ import { useXConversations } from '@ant-design/x-sdk';
 import { DeleteOutlined } from '@ant-design/icons';
 import { useEffect } from 'react';
 import { message } from 'antd';
-import dayjs from 'dayjs';
 
 interface ConversationProps {
   onActiveChange?: (key: string | undefined) => void;
 }
 
-const Conversation = ({ onActiveChange }: ConversationProps) => {
+export const Conversation = ({ onActiveChange }: ConversationProps) => {
   const [, contextHolder] = message.useMessage();
 
   const {
@@ -26,17 +25,6 @@ const Conversation = ({ onActiveChange }: ConversationProps) => {
     defaultActiveConversationKey: undefined,
   });
 
-  // 获取时间分组
-  const getTimeGroup = (timestamp: number) => {
-    const now = dayjs();
-    const date = dayjs(timestamp);
-
-    if (date.isSame(now, 'day')) return '今天';
-    if (date.isSame(now.subtract(1, 'day'), 'day')) return '昨天';
-    if (date.isSame(now, 'week')) return '本周';
-    return '更早';
-  };
-
   // 初始化：从 localStorage 加载历史对话
   useEffect(() => {
     const savedConversations = storageStore.loadAllConversations();
@@ -47,7 +35,6 @@ const Conversation = ({ onActiveChange }: ConversationProps) => {
         addConversation({
           key: conv.id,
           label: conv.title,
-          group: getTimeGroup(conv.lastMessageAt),
         });
       });
   }, []);
@@ -64,7 +51,6 @@ const Conversation = ({ onActiveChange }: ConversationProps) => {
     addConversation({
       key: newId,
       label: '新对话',
-      group: '今天',
     });
 
     // 保存到 localStorage
@@ -98,17 +84,13 @@ const Conversation = ({ onActiveChange }: ConversationProps) => {
     <>
       {contextHolder}
       <Conversations
-        style={{
-          width: 280,
-          height: '100%',
-        }}
+        className="h-full w-74 overflow-y-auto"
         activeKey={activeConversationKey}
         onActiveChange={(key) => setActiveConversationKey(key)}
         creation={{
           onClick: handleCreate,
         }}
         items={conversations}
-        groupable
         menu={(conversation) => ({
           items: [
             {
@@ -124,5 +106,3 @@ const Conversation = ({ onActiveChange }: ConversationProps) => {
     </>
   );
 };
-
-export default Conversation;
