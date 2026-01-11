@@ -1,7 +1,7 @@
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { ChatOpenAI } from '@langchain/openai';
 import { QWEN_API_KEY } from '../config/index';
-import { SYSTEM_PROMPT } from './constants';
+import { SYSTEM_PROMPT } from './prompts';
 import { createAgent } from 'langchain';
 import { MemorySaver } from '@langchain/langgraph';
 

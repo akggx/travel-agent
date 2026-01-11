@@ -4,7 +4,7 @@ import { Annotation, messagesStateReducer } from '@langchain/langgraph';
 export type Requirements = {
   destination: string; // 目的地
   startDate: string; // 出发日期
-  endDate: string; // 结束日期
+  days: number; // 天数
   budget: number; // 预算
   participants: number; // 同行人数
   preferences: string[]; // 偏好
