@@ -27,7 +27,11 @@ export async function testClassifier(userText: string) {
   return { nodeResult, workflowResult };
 }
 
-// 尝试调用
-testClassifier('我想去成都玩5天'); // 预期结果：task
-testClassifier('你好呀'); // 预期结果：chat
-testClassifier('把去成都的预算改成5000'); // 预期结果：modify
+async function runTests() {
+  // 尝试调用
+  await testClassifier('我想去成都玩5天'); // 预期结果：task
+  await testClassifier('你好呀'); // 预期结果：chat
+  await testClassifier('把去成都的预算改成5000'); // 预期结果：modify
+}
+
+runTests();
