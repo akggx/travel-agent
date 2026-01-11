@@ -1,4 +1,4 @@
-import { chatWithAgentStream } from '@/agent';
+import { chatWithAgentStream } from '@/agent/index.legacy';
 import { NextRequest } from 'next/server';
 
 export async function POST(request: NextRequest) {
