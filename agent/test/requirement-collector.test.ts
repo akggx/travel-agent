@@ -1,4 +1,4 @@
-import { HumanMessage, AIMessage } from '@langchain/core/messages';
+import { HumanMessage } from '@langchain/core/messages';
 import { requirementCollector } from '@/agent/nodes/requirement-collector';
 
 async function testRequirementCollector(

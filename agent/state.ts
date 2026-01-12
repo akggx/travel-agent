@@ -40,6 +40,12 @@ export const StateAnnotation = Annotation.Root({
     default: () => false,
   }),
 
+  // 追踪是否已经询问过柔性字段（人数和偏好）
+  hasAskedSoftFields: Annotation<boolean>({
+    reducer: (_, y) => y,
+    default: () => false,
+  }),
+
   // 审计发现的问题列表
   auditIssues: Annotation<string[]>({
     reducer: (x, y) => x.concat(y),

@@ -9,7 +9,7 @@ const requirementSchema = z.object({
   extractedInfo: z.object({
     destination: z.string().nullish().describe('目的地'),
     days: z.coerce.number().nullish().describe('旅行天数/时长'),
-    budget: z.coerce.number().nullish().describe('人均预算金额'),
+    budget: z.number().nullish().describe('人均预算金额'),
     participants: z.number().nullish().describe('同行人数'),
     preferences: z
       .array(z.string())
@@ -18,9 +18,7 @@ const requirementSchema = z.object({
   }),
 
   // 状态判断
-  isCompleted: z
-    .boolean()
-    .describe('目的地、天数、预算这三项核心信息是否都已经收齐'),
+  needMoreSoftInfo: z.boolean().describe('是否还需要补充人数或偏好信息'),
 
   // 话术生成
   missingInfoResponse: z
@@ -47,7 +45,7 @@ export async function requirementCollector(state: AgentState) {
     ...state.messages,
   ]);
 
-  // 处理提取到的新需求
+  // 合并需求信息
   const updatedRequirements = {
     ...state.requirements,
     ...Object.fromEntries(
@@ -57,10 +55,51 @@ export async function requirementCollector(state: AgentState) {
     ),
   };
 
+  // 3. 默认值处理：人数如果不填，默认是 1
+  if (updatedRequirements.participants == null) {
+    updatedRequirements.participants = 1;
+  }
+
+  // 2. 核心三项判定
+  const hasCoreInfo = !!(
+    updatedRequirements.destination &&
+    updatedRequirements.days &&
+    updatedRequirements.budget
+  );
+
+  let isComplete = false;
+  let finalReply = response.replyMessage;
+
+  // 核心：处理“追问一次”的逻辑锁
+  if (hasCoreInfo) {
+    // 情况 A：用户主动给齐了所有人，或者 LLM 觉得不需要再问了
+    if (!response.needMoreSoftInfo) {
+      isComplete = true;
+    }
+    // 情况 B：LLM 觉得还缺，但我们要看“历史记录”
+    else if (state.hasAskedSoftFields) {
+      // 关键：既然之前问过了，这一轮无论用户回什么，都必须强制结束，进入规划！
+      isComplete = true;
+      // 如果此时 AI 还在追问，我们要“捂住它的嘴”，换成确认语
+      if (response.needMoreSoftInfo) {
+        finalReply =
+          '好的，我已经记录下您的偏好（或默认按标准规划），这就为您开始生成行程！';
+      }
+    }
+    // 情况 C：核心齐了，但柔性缺，且还没问过 -> 去问一次
+    else {
+      isComplete = false;
+      // 注意：这里先不设置 state.hasAskedSoftFields 为 true，
+      // 我们在返回时设置，确保它在下一轮生效
+    }
+  }
+
   return {
     requirements: updatedRequirements,
-    isRequirementsComplete: response.isCompleted,
-    messages: [new AIMessage(response.replyMessage)],
+    isRequirementsComplete: isComplete,
+    hasAskedSoftFields:
+      state.hasAskedSoftFields || (hasCoreInfo && response.needMoreSoftInfo),
+    messages: [new AIMessage(finalReply)],
     reasoning: response.missingInfoResponse,
   };
 }
