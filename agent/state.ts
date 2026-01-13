@@ -3,11 +3,11 @@ import { Annotation, messagesStateReducer } from '@langchain/langgraph';
 
 export type Requirements = {
   destination: string; // 目的地
-  startDate: string; // 出发日期
+  startDate: string; // 出发日期 (建议 ISO 格式或自然语言，后续由 Planner 处理)
   days: number; // 天数
   budget: number; // 预算
-  participants: number; // 同行人数
-  preferences: string[]; // 偏好
+  participants: number; // 人数
+  preferences: string[]; // 偏好 (数组)
 };
 
 export const StateAnnotation = Annotation.Root({
@@ -34,15 +34,15 @@ export const StateAnnotation = Annotation.Root({
     default: () => 'chat',
   }),
 
-  // 标记当前需求是否收集完毕
-  isRequirementsComplete: Annotation<boolean>({
-    reducer: (x, y) => y,
+  // 标记：是否已经进行过“偏好追问”
+  hasAskedPreferences: Annotation<boolean>({
+    reducer: (current, update) => update ?? current, // update 存在则覆盖
     default: () => false,
   }),
 
-  // 追踪是否已经询问过柔性字段（人数和偏好）
-  hasAskedSoftFields: Annotation<boolean>({
-    reducer: (_, y) => y,
+  // 标记当前需求是否收集完毕
+  isRequirementsComplete: Annotation<boolean>({
+    reducer: (x, y) => y,
     default: () => false,
   }),
 

@@ -13,6 +13,8 @@ export const model = new ChatOpenAI({
   configuration: {
     baseURL: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
   },
+  temperature: 0.1,
+  maxTokens: 500,
 });
 
 const workflow = new StateGraph(StateAnnotation)
