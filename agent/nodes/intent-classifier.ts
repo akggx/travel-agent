@@ -23,8 +23,20 @@ const intentSchema = z.object({
 });
 
 export async function intentClassifier(state: AgentState) {
-  const structureModel = model.withStructuredOutput(intentSchema);
+  // 如果正在收集需求，直接跳转到 requirement_node
+  if (
+    state.intent === 'task' &&
+    state.requirements &&
+    Object.keys(state.requirements).length > 0 &&
+    !state.hasAskedPreferences // 还没完成收集
+  ) {
+    console.log('[classifier] 检测到正在收集需求，直接跳转到 requirement_node');
+    return new Command({
+      goto: 'requirement_node',
+    });
+  }
 
+  const structureModel = model.withStructuredOutput(intentSchema);
   const response = await structureModel.invoke([
     new SystemMessage(INTENT_CLASSIFIER_PROMPT),
     ...state.messages,

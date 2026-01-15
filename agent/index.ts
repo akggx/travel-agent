@@ -25,7 +25,7 @@ const workflow = new StateGraph(StateAnnotation)
     ends: [END],
   })
   .addNode('requirement_node', requirementCollector, {
-    ends: ['requirement_node', 'planner_node', END],
+    ends: ['planner_node', END],
   })
   // 规划节点占位
   .addNode(

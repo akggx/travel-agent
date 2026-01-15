@@ -96,6 +96,6 @@ export async function requirementCollector(state: AgentState) {
       requirements: updatedRequirements,
       hasAskedPreferences: hasAskedPreferences,
     },
-    goto: 'requirement_node',
+    goto: END,
   });
 }
