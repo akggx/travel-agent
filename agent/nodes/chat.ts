@@ -1,10 +1,10 @@
 import { SystemMessage } from '@langchain/core/messages';
-import { model } from '..';
+import { qwenTurbo } from '..';
 import { AgentState } from '../state';
 import { CHAT_PROMPT } from '../prompts';
 
 export async function chatNode(state: AgentState) {
-  const response = await model.invoke([
+  const response = await qwenTurbo.invoke([
     new SystemMessage(CHAT_PROMPT),
     ...state.messages,
   ]);

@@ -5,9 +5,9 @@ import { StateAnnotation } from './state';
 import { intentClassifier } from './nodes/intent-classifier';
 import { requirementCollector } from './nodes/requirement-collector';
 import { chatNode } from './nodes/chat';
-import { AIMessage } from '@langchain/core/messages';
+import { planner } from './nodes/planner';
 
-export const model = new ChatOpenAI({
+export const qwenTurbo = new ChatOpenAI({
   model: 'qwen-turbo',
   apiKey: QWEN_API_KEY,
   configuration: {
@@ -15,6 +15,16 @@ export const model = new ChatOpenAI({
   },
   temperature: 0.1,
   maxTokens: 500,
+});
+
+export const qwenMax = new ChatOpenAI({
+  model: 'qwen-max',
+  apiKey: QWEN_API_KEY,
+  configuration: {
+    baseURL: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+  },
+  temperature: 0.1,
+  maxTokens: 4096,
 });
 
 const workflow = new StateGraph(StateAnnotation)
@@ -28,19 +38,9 @@ const workflow = new StateGraph(StateAnnotation)
     ends: ['planner_node', END],
   })
   // 规划节点占位
-  .addNode(
-    'planner_node',
-    async (state) => {
-      return { messages: [new AIMessage('我已经准备好为您生成行程了！')] };
-    },
-    {
-      ends: [END],
-    },
-  );
+  .addNode('planner_node', planner, { ends: [END] });
 
-// --- 连线逻辑 ---
-
-// 1. 入口点
+// 入口点
 workflow.addEdge(START, 'classifier_node');
 
 export const agent = workflow.compile({

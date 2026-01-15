@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { AgentState } from '../state';
-import { model } from '..';
+import { qwenTurbo } from '..';
 import { AIMessage, SystemMessage } from '@langchain/core/messages';
 import { INTENT_CLASSIFIER_PROMPT } from '../prompts';
 import { Command } from '@langchain/langgraph';
@@ -36,7 +36,7 @@ export async function intentClassifier(state: AgentState) {
     });
   }
 
-  const structureModel = model.withStructuredOutput(intentSchema);
+  const structureModel = qwenTurbo.withStructuredOutput(intentSchema);
   const response = await structureModel.invoke([
     new SystemMessage(INTENT_CLASSIFIER_PROMPT),
     ...state.messages,

@@ -1,5 +1,5 @@
 import { AIMessage, SystemMessage } from '@langchain/core/messages';
-import { model } from '..';
+import { qwenTurbo } from '..';
 import { AgentState } from '../state';
 import { z } from 'zod';
 import { REQUIREMENT_COLLECTOR_PROMPT } from '../prompts';
@@ -36,7 +36,7 @@ const requirementSchema = z.object({
 });
 
 export async function requirementCollector(state: AgentState) {
-  const structureModel = model.withStructuredOutput(requirementSchema);
+  const structureModel = qwenTurbo.withStructuredOutput(requirementSchema);
 
   const prompt = REQUIREMENT_COLLECTOR_PROMPT.replace(
     '{current_requirements}',
