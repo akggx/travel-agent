@@ -3,7 +3,7 @@ import { model } from '..';
 import { AgentState } from '../state';
 import { z } from 'zod';
 import { REQUIREMENT_COLLECTOR_PROMPT } from '../prompts';
-import { message } from 'antd';
+import { Command, END } from '@langchain/langgraph';
 
 const requirementSchema = z.object({
   // 提取到的信息(可能只有部分)
@@ -18,6 +18,12 @@ const requirementSchema = z.object({
       .nullish()
       .describe('兴趣偏好，如：美食、摄影、徒步、海景房、不吃辣'),
   }),
+
+  // 三种意图
+  userIntent: z.enum(['continue', 'cancel']).describe(`
+    - continue: 用户在正常对话（回答问题、补充信息、修改信息都算）
+    - cancel: 用户想取消规划（如"算了不去了")
+  `),
 
   // 决策字段
   step_decision: z
@@ -42,6 +48,16 @@ export async function requirementCollector(state: AgentState) {
     ...state.messages,
   ]);
 
+  // 如果用户取消规划
+  if (response.userIntent === 'cancel') {
+    return new Command({
+      update: {
+        messages: [new AIMessage(response.replyMessage)],
+      },
+      goto: END,
+    });
+  }
+
   // 构建要更新的需求对象
   const oldPrefs = state.requirements.preferences || [];
   const newPrefs = response.extractedInfo.preferences || [];
@@ -56,26 +72,30 @@ export async function requirementCollector(state: AgentState) {
   };
 
   // 根据 LLM 的决策控制流程标记
-  let isRequirementsComplete = state.isRequirementsComplete;
   let hasAskedPreferences = state.hasAskedPreferences;
-  switch (response.step_decision) {
-    case 'ask_core':
-      isRequirementsComplete = false;
-      break;
-    case 'ask_prefs':
-      hasAskedPreferences = true;
-      isRequirementsComplete = false;
-
-      break;
-    case 'finalize':
-      isRequirementsComplete = true;
-      break;
+  if (response.step_decision === 'ask_prefs') {
+    hasAskedPreferences = true;
   }
 
-  return {
-    messages: new AIMessage(response.replyMessage),
-    requirements: updatedRequirements,
-    isRequirementsComplete: isRequirementsComplete,
-    hasAskedPreferences: hasAskedPreferences,
-  };
+  // 需求收集完成
+  if (response.step_decision === 'finalize') {
+    return new Command({
+      update: {
+        messages: [new AIMessage(response.replyMessage)],
+        requirements: updatedRequirements,
+        hasAskedPreferences: hasAskedPreferences,
+      },
+      goto: 'planner_node',
+    });
+  }
+
+  // 没收集完成，自循环
+  return new Command({
+    update: {
+      messages: [new AIMessage(response.replyMessage)],
+      requirements: updatedRequirements,
+      hasAskedPreferences: hasAskedPreferences,
+    },
+    goto: 'requirement_node',
+  });
 }

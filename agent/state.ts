@@ -40,12 +40,6 @@ export const StateAnnotation = Annotation.Root({
     default: () => false,
   }),
 
-  // 标记当前需求是否收集完毕
-  isRequirementsComplete: Annotation<boolean>({
-    reducer: (x, y) => y,
-    default: () => false,
-  }),
-
   // 审计发现的问题列表
   auditIssues: Annotation<string[]>({
     reducer: (x, y) => x.concat(y),

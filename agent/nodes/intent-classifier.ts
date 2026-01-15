@@ -1,8 +1,9 @@
 import { z } from 'zod';
 import { AgentState } from '../state';
 import { model } from '..';
-import { SystemMessage } from '@langchain/core/messages';
+import { AIMessage, SystemMessage } from '@langchain/core/messages';
 import { INTENT_CLASSIFIER_PROMPT } from '../prompts';
+import { Command } from '@langchain/langgraph';
 
 const intentSchema = z.object({
   intent: z
@@ -29,15 +30,24 @@ export async function intentClassifier(state: AgentState) {
     ...state.messages,
   ]);
 
-  return {
-    intent: response.intent,
-    reasoning: response.reasoning,
-    confidence: response.confidence,
-    requirements: response.extractedInfo
-      ? {
-          destination: response.extractedInfo.destination,
-          days: response.extractedInfo.days,
-        }
-      : {},
-  };
+  if (response.intent === 'chat') {
+    return new Command({
+      update: {
+        messages: [new AIMessage(response.intent)],
+      },
+      goto: 'chat_node',
+    });
+  }
+  return new Command({
+    update: {
+      intent: response.intent,
+      requirements: response.extractedInfo
+        ? {
+            destination: response.extractedInfo.destination,
+            days: response.extractedInfo.days,
+          }
+        : {},
+    },
+    goto: 'requirement_node',
+  });
 }
