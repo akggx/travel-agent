@@ -110,6 +110,7 @@ async function runTests() {
         '元/人',
       );
       console.log('\n📅 每日行程:');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       result.itinerary.dailyItinerary.forEach((day: any, index: number) => {
         console.log(`  Day ${day.day} (${day.date}): ${day.title}`);
       });
