@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { agent } from '@/agent';
 import { HumanMessage } from '@langchain/core/messages';
 

@@ -84,9 +84,22 @@ export async function planner(state: AgentState) {
   const structureModel = qwenMax.withStructuredOutput(itinerarySchema);
   console.log('[planner] 开始生成行程');
 
+  // 构建用于生成行程的消息，包含用户需求和工具结果
+  const toolMessages = state.messages.filter(
+    (msg) => msg._getType() === 'tool',
+  );
+
+  const generationPrompt = `
+${prompt}
+
+## 工具调用结果
+${toolMessages.map((msg) => `- ${msg.name}: ${msg.content}`).join('\n')}
+
+请根据以上需求和工具查询结果，生成完整的旅行行程计划。
+`;
+
   const itinerary = await structureModel.invoke([
-    new SystemMessage(prompt),
-    ...state.messages,
+    new SystemMessage(generationPrompt),
   ]);
 
   return new Command({

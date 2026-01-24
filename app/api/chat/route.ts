@@ -1,6 +1,6 @@
-import { chatWithAgentStream } from '@/agent/index.legacy';
 import { NextRequest } from 'next/server';
-
+import { agent } from '@/agent';
+import { HumanMessage } from '@langchain/core/messages';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -25,21 +25,41 @@ export async function POST(request: NextRequest) {
       async start(controller) {
         try {
           // 使用流式方法
-          const streamResponse = await chatWithAgentStream(
-            userMessage,
-            conversationId || '1',
+          const streamResponse = agent.streamEvents(
+            {
+              messages: [new HumanMessage(userMessage)],
+            },
+            {
+              version: 'v2',
+              configurable: {
+                thread_id: conversationId || 'default',
+              },
+            },
           );
 
           let accumulatedContent = '';
+          const seenContents = new Set<string>(); // 去重用
 
           for await (const event of streamResponse) {
-            // 只处理 on_chat_model_stream 事件（LLM 的 token 流）
+            // 1️⃣ 监听所有 LLM 的 token 流（真正的流式输出）
             if (event.event === 'on_chat_model_stream') {
               const chunk = event.data?.chunk;
-              if (chunk?.content) {
+
+              // 从 metadata 中获取节点名称
+              const nodeName = event.metadata?.langgraph_node;
+
+              // 只处理需要展示给用户的节点输出
+              // 过滤掉 classifier_node、requirement_node、planner_node 等中间节点
+              const shouldStream =
+                nodeName === 'chat_node' ||
+                nodeName === 'presenter_node' ||
+                // 如果没有节点信息，为了安全起见不输出
+                false;
+
+              if (chunk?.content && shouldStream) {
                 accumulatedContent += chunk.content;
 
-                // 发送 SSE 格式数据
+                // 实时发送 token
                 const data = {
                   id: conversationId || 'default',
                   choices: [
@@ -53,7 +73,7 @@ export async function POST(request: NextRequest) {
                     },
                   ],
                   created: Date.now(),
-                  model: 'qwen-turbo',
+                  model: 'qwen-max',
                   object: 'chat.completion.chunk',
                 };
 
@@ -62,9 +82,55 @@ export async function POST(request: NextRequest) {
                 );
               }
             }
+
+            // 2️⃣ 监听节点结束，获取非流式的 AIMessage
+            if (event.event === 'on_chain_end') {
+              const nodeName = event.metadata?.langgraph_node;
+
+              // 只处理 requirement_node 的输出
+              if (nodeName === 'requirement_node') {
+                const output = event.data?.output;
+
+                // 获取 Command.update.messages 中的最后一条消息
+                const lastMessage =
+                  output?.update?.messages?.[output.update.messages.length - 1];
+                const content = lastMessage?.content;
+
+                if (
+                  content &&
+                  typeof content === 'string' &&
+                  !seenContents.has(content)
+                ) {
+                  seenContents.add(content);
+                  accumulatedContent += content;
+
+                  // 一次性发送整个内容
+                  const data = {
+                    id: conversationId || 'default',
+                    choices: [
+                      {
+                        index: 0,
+                        delta: {
+                          role: 'assistant',
+                          content: content,
+                        },
+                        finish_reason: null,
+                      },
+                    ],
+                    created: Date.now(),
+                    model: 'qwen-max',
+                    object: 'chat.completion.chunk',
+                  };
+
+                  controller.enqueue(
+                    encoder.encode(`data: ${JSON.stringify(data)}\n\n`),
+                  );
+                }
+              }
+            }
           }
 
-          console.log('Stream completed. Total content:', accumulatedContent);
+          console.log('✅ 流式输出完成. Total content:', accumulatedContent);
 
           // 发送结束标记
           const endData = {
@@ -77,7 +143,7 @@ export async function POST(request: NextRequest) {
               },
             ],
             created: Date.now(),
-            model: 'qwen-turbo',
+            model: 'qwen-max',
             object: 'chat.completion.chunk',
           };
           controller.enqueue(
