@@ -94,6 +94,6 @@ export async function planner(state: AgentState) {
       messages: [new AIMessage(itinerary.summary)],
       itinerary: itinerary,
     },
-    goto: END,
+    goto: 'presenter_node',
   });
 }

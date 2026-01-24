@@ -45,6 +45,11 @@ export const StateAnnotation = Annotation.Root({
     reducer: (x, y) => x.concat(y),
     default: () => [],
   }),
+
+  finalPresentation: Annotation<string>({
+    reducer: (_, y) => y,
+    default: () => '',
+  }),
 });
 
 export type AgentState = typeof StateAnnotation.State;

@@ -7,6 +7,7 @@ import { requirementCollector } from './nodes/requirement-collector';
 import { chatNode } from './nodes/chat';
 import { planner } from './nodes/planner';
 import { toolExecutor } from './nodes/tool-executor';
+import { presenter } from './nodes/presenter';
 
 export const qwenTurbo = new ChatOpenAI({
   model: 'qwen-turbo',
@@ -39,8 +40,9 @@ const workflow = new StateGraph(StateAnnotation)
     ends: ['planner_node', END],
   })
   // 规划节点占位
-  .addNode('planner_node', planner, { ends: ['tool_node', END] })
-  .addNode('tool_node', toolExecutor, { ends: ['planner_node'] });
+  .addNode('planner_node', planner, { ends: ['tool_node', 'presenter_node'] })
+  .addNode('tool_node', toolExecutor, { ends: ['planner_node'] })
+  .addNode('presenter_node', presenter, { ends: [END] });
 
 // 入口点
 workflow.addEdge(START, 'classifier_node');
