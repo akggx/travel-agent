@@ -36,17 +36,23 @@ const requirementSchema = z.object({
 });
 
 export async function requirementCollector(state: AgentState) {
+  console.log('[requirementCollector] 开始收集需求');
   const structureModel = qwenTurbo.withStructuredOutput(requirementSchema);
 
-  const prompt = REQUIREMENT_COLLECTOR_PROMPT.replace(
-    '{current_requirements}',
-    JSON.stringify(state.requirements),
-  ).replace('{has_asked_prefs}', String(state.hasAskedPreferences));
+  const prompt =
+    REQUIREMENT_COLLECTOR_PROMPT.replace(
+      '{current_requirements}',
+      JSON.stringify(state.requirements),
+    ).replace('{has_asked_prefs}', String(state.hasAskedPreferences)) +
+    '\n\nIMPORTANT: Please return the result in valid json format.';
 
+  console.log('[requirementCollector] 调用模型');
   const response = await structureModel.invoke([
     new SystemMessage(prompt),
     ...state.messages,
   ]);
+
+  console.log('[requirementCollector] 模型返回结果', response);
 
   // 如果用户取消规划
   if (response.userIntent === 'cancel') {
@@ -71,14 +77,19 @@ export async function requirementCollector(state: AgentState) {
     preferences: Array.from(new Set([...oldPrefs, ...newPrefs])),
   };
 
+  console.log('[requirementCollector] 更新需求对象', updatedRequirements);
+
   // 根据 LLM 的决策控制流程标记
   let hasAskedPreferences = state.hasAskedPreferences;
   if (response.step_decision === 'ask_prefs') {
     hasAskedPreferences = true;
   }
 
+  console.log('[requirementCollector] 标记偏好收集完成', hasAskedPreferences);
+
   // 需求收集完成
   if (response.step_decision === 'finalize') {
+    console.log('[requirementCollector] 需求收集完成，跳转到 planner_node');
     return new Command({
       update: {
         messages: [new AIMessage(response.replyMessage)],
@@ -88,6 +99,8 @@ export async function requirementCollector(state: AgentState) {
       goto: 'planner_node',
     });
   }
+
+  console.log('[requirementCollector] 没收集完成，自循环');
 
   // 没收集完成，自循环
   return new Command({

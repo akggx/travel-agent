@@ -4,6 +4,7 @@ import { AIMessage, SystemMessage } from '@langchain/core/messages';
 import { PLANNER_PROMPT } from '../prompts';
 import { qwenMax } from '..';
 import { Command, END } from '@langchain/langgraph';
+import { tools } from '../tools';
 
 const itinerarySchema = z.object({
   // 行程概览
@@ -54,22 +55,44 @@ const itinerarySchema = z.object({
 });
 
 export async function planner(state: AgentState) {
-  const structureModel = qwenMax.withStructuredOutput(itinerarySchema);
+  console.log('[planner] 开始判断工具');
+  // tools
+  const modelWithTools = qwenMax.bindTools(tools);
 
   // 构建提示词，注入需求信息
   const prompt = PLANNER_PROMPT.replace(
     '{requirements}',
     JSON.stringify(state.requirements),
   );
-  const response = await structureModel.invoke([
+
+  console.log('[planner] 判断工具完成，开始生成行程');
+  const response = await modelWithTools.invoke([
+    new SystemMessage(prompt),
+    ...state.messages,
+  ]);
+
+  // 如果模型返回工具调用，则调用工具
+  if (response.tool_calls && response.tool_calls.length > 0) {
+    console.log('[planner] 模型返回工具调用，跳转到 tool_node');
+    return new Command({
+      update: { messages: [response] },
+      goto: 'tool_node',
+    });
+  }
+
+  // 模型信息充足，直接生成结构化行程
+  const structureModel = qwenMax.withStructuredOutput(itinerarySchema);
+  console.log('[planner] 开始生成行程');
+
+  const itinerary = await structureModel.invoke([
     new SystemMessage(prompt),
     ...state.messages,
   ]);
 
   return new Command({
     update: {
-      messages: [new AIMessage(response.summary)],
-      itinerary: response,
+      messages: [new AIMessage(itinerary.summary)],
+      itinerary: itinerary,
     },
     goto: END,
   });

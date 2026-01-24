@@ -6,6 +6,7 @@ import { intentClassifier } from './nodes/intent-classifier';
 import { requirementCollector } from './nodes/requirement-collector';
 import { chatNode } from './nodes/chat';
 import { planner } from './nodes/planner';
+import { toolExecutor } from './nodes/tool-executor';
 
 export const qwenTurbo = new ChatOpenAI({
   model: 'qwen-turbo',
@@ -14,7 +15,7 @@ export const qwenTurbo = new ChatOpenAI({
     baseURL: QWEN_API_URL,
   },
   temperature: 0.1,
-  maxTokens: 500,
+  maxTokens: 1024,
 });
 
 export const qwenMax = new ChatOpenAI({
@@ -24,7 +25,7 @@ export const qwenMax = new ChatOpenAI({
     baseURL: QWEN_API_URL,
   },
   temperature: 0.1,
-  maxTokens: 4096,
+  maxTokens: 8192,
 });
 
 const workflow = new StateGraph(StateAnnotation)
@@ -38,7 +39,8 @@ const workflow = new StateGraph(StateAnnotation)
     ends: ['planner_node', END],
   })
   // 规划节点占位
-  .addNode('planner_node', planner, { ends: [END] });
+  .addNode('planner_node', planner, { ends: ['tool_node', END] })
+  .addNode('tool_node', toolExecutor, { ends: ['planner_node'] });
 
 // 入口点
 workflow.addEdge(START, 'classifier_node');
