@@ -1,5 +1,5 @@
 import { ChatOpenAI } from '@langchain/openai';
-import { QWEN_API_KEY } from '../config/index';
+import { QWEN_API_KEY, QWEN_API_URL } from '../config/index';
 import { END, MemorySaver, START, StateGraph } from '@langchain/langgraph';
 import { StateAnnotation } from './state';
 import { intentClassifier } from './nodes/intent-classifier';
@@ -11,7 +11,7 @@ export const qwenTurbo = new ChatOpenAI({
   model: 'qwen-turbo',
   apiKey: QWEN_API_KEY,
   configuration: {
-    baseURL: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+    baseURL: QWEN_API_URL,
   },
   temperature: 0.1,
   maxTokens: 500,
@@ -21,7 +21,7 @@ export const qwenMax = new ChatOpenAI({
   model: 'qwen-max',
   apiKey: QWEN_API_KEY,
   configuration: {
-    baseURL: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+    baseURL: QWEN_API_URL,
   },
   temperature: 0.1,
   maxTokens: 4096,
